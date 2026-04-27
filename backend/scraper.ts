@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { wrapper } from 'axios-cookiejar-support';
+import { CookieJar } from 'tough-cookie';
 import * as cheerio from 'cheerio';
 import db from './db.js';
 
@@ -16,10 +18,13 @@ export async function scrapeDevice(deviceId: number) {
     baseUrl = baseUrl.replace(/\/+$/, ""); // Remove trailing slash if any
     
     // Real PISOFi scraping logic
+    
+    // Create an axios instance with cookie jar for session management
+    const jar = new CookieJar();
+    const client = wrapper(axios.create({ jar }));
+
     // 0. Fetch the login page to get CSRF token and initial cookies
-    const loginPageRes = await axios.get(`${baseUrl}/auth/signin/`, { timeout: REQUEST_TIMEOUT });
-    const initialCookies = loginPageRes.headers['set-cookie'] || [];
-    const initialCookieString = initialCookies.map(c => c.split(';')[0]).join('; ');
+    const loginPageRes = await client.get(`${baseUrl}/auth/signin/`, { timeout: REQUEST_TIMEOUT });
     
     const $login = cheerio.load(loginPageRes.data);
     let csrfName = '';
@@ -36,6 +41,20 @@ export async function scrapeDevice(deviceId: number) {
       }
     });
 
+    // CodeIgniter CSRF Token via Cookie (sometimes the hidden input is named differently or we just need the cookie)
+    // If we didn't find a hidden input, let's see if there's a CSRF cookie we can use for the post body
+    if (!csrfName) {
+      const cookies = await jar.getCookies(baseUrl);
+      const csrfCookie = cookies.find((c: any) => c.key.toLowerCase().includes('csrf'));
+      if (csrfCookie) {
+         csrfName = csrfCookie.key; // e.g., csrf_cookie_name
+         csrfValue = csrfCookie.value;
+      } /* Fallback for pisofi is usually 'csrf_test_name' */
+      else {
+         csrfName = 'csrf_test_name';
+      }
+    }
+
     // 1. Authenticate to get session cookie
     const params = new URLSearchParams();
     params.append('username', device.username);
@@ -44,26 +63,22 @@ export async function scrapeDevice(deviceId: number) {
       params.append(csrfName, csrfValue);
     }
 
-    const loginRes = await axios.post(`${baseUrl}/auth/signin/`, params, { 
+    const loginRes = await client.post(`${baseUrl}/auth/signin/`, params, { 
       timeout: REQUEST_TIMEOUT,
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Cookie': initialCookieString
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
-
-    const cookies = loginRes.headers['set-cookie'];
-    if (!cookies || cookies.length === 0) {
-      throw new Error('Authentication failed: No session cookie received');
+    
+    // Some versions redirect on success, or return 200 with dashboard.
+    // Ensure we reached the dashboard or successful login.
+    if (loginRes.data.includes('Invalid credentials') || loginRes.data.includes('Incorrect login')) {
+       throw new Error('Authentication failed: Invalid credentials');
     }
-
-    // Extract the primary session cookie
-    const cookieString = cookies.map(c => c.split(';')[0]).join('; ');
 
     // 2. Fetch the dashboard or income statistics page
     // Note: The specific URL and CSS selectors depend on the exact PISOFi firmware version.
-    const statsRes = await axios.get(`${baseUrl}/admin/system`, {
-      headers: { Cookie: cookieString },
+    const statsRes = await client.get(`${baseUrl}/admin/system`, {
       timeout: REQUEST_TIMEOUT
     });
 
