@@ -13,12 +13,13 @@ export async function scrapeDevice(deviceId: number) {
     
     // Real PISOFi scraping logic
     // 1. Authenticate to get session cookie
-    const loginRes = await axios.post(`${baseUrl}/admin/login`, {
-      username: device.username,
-      password: device.password
-    }, { 
+    const params = new URLSearchParams();
+    params.append('username', device.username);
+    params.append('password', device.password);
+
+    const loginRes = await axios.post(`${baseUrl}/auth/signin/`, params, { 
       timeout: REQUEST_TIMEOUT,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' } // Common for simple admin panels
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
 
     const cookies = loginRes.headers['set-cookie'];
