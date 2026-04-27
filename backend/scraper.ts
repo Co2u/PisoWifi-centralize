@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import db from './db.js';
 
-const REQUEST_TIMEOUT = 10000; // 10 seconds
+const REQUEST_TIMEOUT = 15000; // 15 seconds
 
 export async function scrapeDevice(deviceId: number) {
   const device = db.prepare('SELECT * FROM devices WHERE id = ?').get(deviceId) as any;
@@ -40,14 +40,23 @@ export async function scrapeDevice(deviceId: number) {
     
     // 3. Extract the daily income text
     // We attempt multiple common selectors where PisoFi might store the daily income
-    let incomeText = $('#daily-income').text() || 
-                     $('.daily-sales').text() || 
-                     $('div:contains("Daily Income")').next().text() || 
-                     $('div:contains("Income Today")').next().text() ||
-                     $('.income-today').text() ||
-                     '0';
+    let incomeText = '';
+    const salesHeader = $('*:contains("Today\'s Sales")').last();
+    if (salesHeader.length > 0) {
+       // The amount "186" is usually near the header, so grabbing the parent's text is a safe bet to capture the digits.
+       incomeText = salesHeader.parent().text();
+    }
 
-    // Clean up the string to extract numbers (e.g. "₱ 1,234.50" -> 1234.50)
+    if (!incomeText) {
+      incomeText = $('#daily-income').text() || 
+                      $('.daily-sales').text() || 
+                      $('div:contains("Daily Income")').next().text() || 
+                      $('div:contains("Income Today")').next().text() ||
+                      $('.income-today').text() ||
+                      '0';
+    }
+
+    // Clean up the string to extract numbers (e.g. "Today's Sales 1,234.50" -> 1234.50)
     incomeText = incomeText.replace(/[^0-9.]/g, '');
     let incomeAmount = parseFloat(incomeText);
 
