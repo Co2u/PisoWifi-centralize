@@ -1,0 +1,6 @@
+{
+  "name": "PisoWiFi Centralized Income",
+  "description": "Centralized Income Monitoring System aggregating daily income from PisoWiFi devices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
