@@ -14,12 +14,22 @@ export default function DeviceDetails() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editFormData, setEditFormData] = useState({ name: '', location: '', zerotier_ip: '', username: '', password: '' });
+  const [chartDays, setChartDays] = useState<number | 'custom'>(30);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const fetchDetails = async () => {
     try {
+      let chartUrl = `/income/device/${id}?days=${chartDays}`;
+      if (chartDays === 'custom' && startDate && endDate) {
+        chartUrl = `/income/device/${id}?startDate=${startDate}&endDate=${endDate}`;
+      } else if (chartDays === 'custom') {
+        chartUrl = `/income/device/${id}?days=30`;
+      }
+
       const [deviceRes, incomeRes, scrapeRes] = await Promise.all([
         api.get(`/devices/${id}`),
-        api.get(`/income/device/${id}`),
+        api.get(chartUrl),
         api.get(`/scrape-logs/${id}`)
       ]);
       setDevice(deviceRes.data);
@@ -39,8 +49,14 @@ export default function DeviceDetails() {
   };
 
   useEffect(() => {
-    fetchDetails();
-  }, [id]);
+    if (chartDays === 'custom') {
+      if (startDate && endDate) {
+        fetchDetails();
+      }
+    } else {
+      fetchDetails();
+    }
+  }, [id, chartDays, startDate, endDate]);
 
   const handleScrape = async () => {
     setScraping(true);
@@ -132,9 +148,57 @@ export default function DeviceDetails() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-panel sm:rounded-2xl p-6">
-          <h4 className="text-lg font-medium text-white mb-4 flex items-center">
-            <Activity className="h-5 w-5 mr-2 text-blue-500" /> Daily Income History
-          </h4>
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="text-lg font-medium text-white flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-blue-500" /> Daily Income History
+            </h4>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  import('xlsx').then((XLSX) => {
+                    const ws = XLSX.utils.json_to_sheet(incomeLogs.map((log: any) => ({ Date: log.date, Amount: log.amount })));
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Income Logs");
+                    const filename = chartDays === 'custom' ? `${device.name.replace(/\s+/g, '_')}_income_${startDate}_to_${endDate}.xlsx` : `${device.name.replace(/\s+/g, '_')}_income_${chartDays}_days.xlsx`;
+                    XLSX.writeFile(wb, filename);
+                  });
+                }}
+                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-300 rounded-lg px-3 py-2 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export
+              </button>
+              {chartDays === 'custom' && (
+                <>
+                  <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={e => setStartDate(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                  />
+                  <span className="text-slate-400 self-center">to</span>
+                  <input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={e => setEndDate(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                  />
+                </>
+              )}
+              <select
+                value={chartDays}
+                onChange={(e) => setChartDays(e.target.value === 'custom' ? 'custom' : Number(e.target.value))}
+                className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+              >
+                <option value={7}>Last 7 Days</option>
+                <option value={14}>Last 14 Days</option>
+                <option value={30}>Last 30 Days</option>
+                <option value={90}>Last 90 Days</option>
+                <option value={365}>Last 1 Year</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+          </div>
           <div className="h-64 w-full text-xs">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={incomeLogs} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>

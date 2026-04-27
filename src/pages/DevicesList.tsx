@@ -73,6 +73,26 @@ export default function DevicesList() {
         </div>
         <div className="flex gap-3">
           <button
+            onClick={() => {
+              import('xlsx').then((XLSX) => {
+                const ws = XLSX.utils.json_to_sheet(devices.map((d: any) => ({ 
+                  Name: d.name, 
+                  Location: d.location, 
+                  IP: d.zerotier_ip, 
+                  Status: d.status, 
+                  Last_Seen: d.last_seen 
+                })));
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Devices");
+                XLSX.writeFile(wb, `pisowifi_nodes.xlsx`);
+              });
+            }}
+            className="inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Export
+          </button>
+          <button
             onClick={() => setShowZtModal(true)}
             className="inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none transition-colors"
           >
