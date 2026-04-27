@@ -11,39 +11,49 @@ export async function scrapeDevice(deviceId: number) {
   try {
     const baseUrl = `http://${device.zerotier_ip}`;
     
-    // In a real PISOFi system, you'd perform a login POST request to get a session cookie,
-    // and then fetch the statistics page.
-    // Example:
-    /*
+    // Real PISOFi scraping logic
+    // 1. Authenticate to get session cookie
     const loginRes = await axios.post(`${baseUrl}/admin/login`, {
       username: device.username,
       password: device.password
-    }, { timeout: REQUEST_TIMEOUT });
-    const cookie = loginRes.headers['set-cookie'];
-    
-    const statsRes = await axios.get(`${baseUrl}/admin/income`, {
-      headers: { Cookie: cookie },
-      timeout: REQUEST_TIMEOUT
+    }, { 
+      timeout: REQUEST_TIMEOUT,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' } // Common for simple admin panels
     });
-    const $ = cheerio.load(statsRes.data);
-    const incomeString = $('#daily-income').text() || '0';
-    */
 
-    // --- MOCK SCRAPING LOGIC FOR DEVELOPMENT (since we are in an isolated env) ---
-    // In a real environment, you replace this with actual login/scraping endpoints.
-    let incomeAmount = 0;
-    
-    // We simulate a ping to the device to check availability.
-    // Replace this simulation with the real Axios call above when actual devices are present on the host network.
-    const isMockAvailable = Math.random() > 0.1; // 90% chance online
-    if (!isMockAvailable) {
-      throw new Error(`Connection timeout parsing ${baseUrl}`);
+    const cookies = loginRes.headers['set-cookie'];
+    if (!cookies || cookies.length === 0) {
+      throw new Error('Authentication failed: No session cookie received');
     }
 
-    // MOCK extraction
-    incomeAmount = Math.floor(Math.random() * 500) + 100; // Random daily amount
+    // Extract the primary session cookie
+    const cookieString = cookies.map(c => c.split(';')[0]).join('; ');
+
+    // 2. Fetch the dashboard or income statistics page
+    // Note: The specific URL and CSS selectors depend on the exact PISOFi firmware version.
+    const statsRes = await axios.get(`${baseUrl}/admin/system`, {
+      headers: { Cookie: cookieString },
+      timeout: REQUEST_TIMEOUT
+    });
+
+    const $ = cheerio.load(statsRes.data);
     
-    // -------------------------------------------------------------
+    // 3. Extract the daily income text
+    // We attempt multiple common selectors where PisoFi might store the daily income
+    let incomeText = $('#daily-income').text() || 
+                     $('.daily-sales').text() || 
+                     $('div:contains("Daily Income")').next().text() || 
+                     $('div:contains("Income Today")').next().text() ||
+                     $('.income-today').text() ||
+                     '0';
+
+    // Clean up the string to extract numbers (e.g. "₱ 1,234.50" -> 1234.50)
+    incomeText = incomeText.replace(/[^0-9.]/g, '');
+    let incomeAmount = parseFloat(incomeText);
+
+    if (isNaN(incomeAmount)) {
+        incomeAmount = 0; // Fallback if parsing fails
+    }
 
     // Store the data
     const today = new Date().toISOString().split('T')[0];
