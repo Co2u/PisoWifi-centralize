@@ -9,7 +9,11 @@ export async function scrapeDevice(deviceId: number) {
   if (!device) return { success: false, error: 'Device not found' };
 
   try {
-    const baseUrl = `http://${device.zerotier_ip}`;
+    let baseUrl = device.zerotier_ip.trim();
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+      baseUrl = `http://${baseUrl}`;
+    }
+    baseUrl = baseUrl.replace(/\/+$/, ""); // Remove trailing slash if any
     
     // Real PISOFi scraping logic
     // 1. Authenticate to get session cookie
@@ -87,7 +91,11 @@ export async function scrapeDevice(deviceId: number) {
     return { success: true, amount: incomeAmount };
 
   } catch (err: any) {
-    const errorMsg = err.message || 'Unknown scrape error';
+    let errorMsg = err.message || 'Unknown scrape error';
+    if (err.response) {
+      // Axios error
+      errorMsg = `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}`;
+    }
     
     // Update device status
     db.prepare("UPDATE devices SET status = 'offline' WHERE id = ?").run(device.id);
