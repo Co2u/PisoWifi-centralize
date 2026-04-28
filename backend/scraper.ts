@@ -5,7 +5,7 @@ import * as cheerio from 'cheerio';
 import CryptoJS from 'crypto-js';
 import db from './db.js';
 
-const REQUEST_TIMEOUT = 15000;
+const REQUEST_TIMEOUT = 30000;
 const LOGIN_ERROR_PATTERNS = [
   'invalid credentials',
   'incorrect',

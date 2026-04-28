@@ -9,6 +9,16 @@ const db = new Database(dbPath/*, { verbose: console.log }*/); // Remove verbose
 export function initDB() {
   db.pragma('journal_mode = WAL');
 
+  // Settings table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+  
+  db.exec(`INSERT OR IGNORE INTO settings (key, value) VALUES ('cron_interval', '60')`);
+
   // Users table for dashboard login
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (

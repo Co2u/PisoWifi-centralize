@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Server, LogOut, Settings } from 'lucide-react';
 import api from '../lib/api';
@@ -7,7 +7,16 @@ export default function DashboardLayout() {
   const location = useLocation();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [credentialData, setCredentialData] = useState({ currentPassword: '', newUsername: '', newPassword: '' });
+  const [cronInterval, setCronInterval] = useState('60');
   const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (showSettingsModal) {
+      api.get('/settings').then(res => {
+        if (res.data.cron_interval) setCronInterval(res.data.cron_interval);
+      }).catch(err => console.error(err));
+    }
+  }, [showSettingsModal]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -18,11 +27,18 @@ export default function DashboardLayout() {
     e.preventDefault();
     setIsUpdating(true);
     try {
-      await api.put('/auth/credentials', credentialData);
-      alert('Credentials updated successfully. Please login again.');
-      handleLogout();
+      if (credentialData.currentPassword) {
+         await api.put('/auth/credentials', credentialData);
+         alert('Credentials updated successfully. Please login again.');
+         handleLogout();
+         return;
+      }
+      
+      await api.post('/settings', { cron_interval: cronInterval });
+      alert('Settings updated successfully.');
+      setShowSettingsModal(false);
     } catch (err: any) {
-      alert('Failed to update credentials: ' + (err.response?.data?.error || err.message));
+      alert('Failed to update settings: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsUpdating(false);
     }
@@ -102,9 +118,30 @@ export default function DashboardLayout() {
                 <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-slate-700/50">
                   <h3 className="text-lg leading-6 font-semibold text-white mb-4" id="modal-title">Admin Account Settings</h3>
                   <div className="space-y-4">
+                    <div className="pb-4 border-b border-slate-700/30">
+                      <h4 className="text-sm font-medium text-slate-400 mb-3">Sync Configuration</h4>
+                      <label className="block text-sm font-medium text-slate-300">Custom Cron Intervals</label>
+                      <select 
+                        value={cronInterval}
+                        onChange={e => setCronInterval(e.target.value)}
+                        className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors"
+                      >
+                        <option value="5">Every 5 minutes</option>
+                        <option value="15">Every 15 minutes</option>
+                        <option value="30">Every 30 minutes</option>
+                        <option value="60">Every 1 hour</option>
+                        <option value="120">Every 2 hours</option>
+                        <option value="360">Every 6 hours</option>
+                        <option value="720">Every 12 hours</option>
+                        <option value="1440">Every 24 hours</option>
+                      </select>
+                      <p className="mt-1 text-xs text-slate-500">Adjust how often the backend auto-syncs the nodes.</p>
+                    </div>
+
+                    <h4 className="text-sm font-medium text-slate-400 mb-1 pt-2">Security</h4>
                     <div>
-                      <label className="block text-sm font-medium text-slate-300">Current Password</label>
-                      <input type="password" required value={credentialData.currentPassword} onChange={e => setCredentialData({...credentialData, currentPassword: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                      <label className="block text-sm font-medium text-slate-300">Current Password (Required for changing login details)</label>
+                      <input type="password" value={credentialData.currentPassword} onChange={e => setCredentialData({...credentialData, currentPassword: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-300">New Username (leave blank to keep current)</label>

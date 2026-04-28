@@ -5,6 +5,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Overview from './pages/Overview';
 import DevicesList from './pages/DevicesList';
 import DeviceDetails from './pages/DeviceDetails';
+import Settings from './pages/Settings';
 
 // Simple auth check
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -23,6 +24,7 @@ export default function App() {
           <Route index element={<Overview />} />
           <Route path="devices" element={<DevicesList />} />
           <Route path="devices/:id" element={<DeviceDetails />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </Router>

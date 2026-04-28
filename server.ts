@@ -9,6 +9,7 @@ import { initCron } from './backend/cron.js';
 import authRoutes from './backend/routes/auth.js';
 import devicesRoutes from './backend/routes/devices.js';
 import financeRoutes from './backend/routes/finance.js';
+import settingsRoutes from './backend/routes/settings.js';
 
 async function startServer() {
   const app = express();
@@ -30,6 +31,7 @@ async function startServer() {
   // API Routes
   app.use('/api/auth', authRoutes);
   app.use('/api/devices', devicesRoutes);
+  app.use('/api/settings', settingsRoutes);
   app.use('/api', financeRoutes);
 
   // Vite Integration for Frontend
