@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../lib/api';
 import { RefreshCw, Activity, Calendar, Edit } from 'lucide-react';
@@ -69,7 +69,7 @@ export default function DeviceDetails() {
     setScraping(false);
   };
 
-  const handleEditSubmit = async (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
