@@ -1,8 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../lib/api';
-import { RefreshCw, Activity, Calendar } from 'lucide-react';
+import { RefreshCw, Activity, Calendar, Edit } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+function formatUtcSqliteTimestamp(timestamp: string) {
+  const parsed = new Date(timestamp.replace(' ', 'T') + 'Z');
+  if (Number.isNaN(parsed.getTime())) {
+    return timestamp;
+  }
+  return parsed.toLocaleString();
+}
 
 export default function DeviceDetails() {
   const { id } = useParams();
@@ -11,15 +19,35 @@ export default function DeviceDetails() {
   const [scrapeLogs, setScrapeLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scraping, setScraping] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editFormData, setEditFormData] = useState({ name: '', location: '', zerotier_ip: '', username: '', password: '' });
+  const [chartDays, setChartDays] = useState<number | 'custom'>(30);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const fetchDetails = async () => {
     try {
+      let chartUrl = `/income/device/${id}?days=${chartDays}`;
+      if (chartDays === 'custom' && startDate && endDate) {
+        chartUrl = `/income/device/${id}?startDate=${startDate}&endDate=${endDate}`;
+      } else if (chartDays === 'custom') {
+        chartUrl = `/income/device/${id}?days=30`;
+      }
+
       const [deviceRes, incomeRes, scrapeRes] = await Promise.all([
         api.get(`/devices/${id}`),
-        api.get(`/income/device/${id}`),
+        api.get(chartUrl),
         api.get(`/scrape-logs/${id}`)
       ]);
       setDevice(deviceRes.data);
+      setEditFormData({
+        name: deviceRes.data.name || '',
+        location: deviceRes.data.location || '',
+        zerotier_ip: deviceRes.data.zerotier_ip || '',
+        username: deviceRes.data.username || '',
+        password: '' // Don't populate password
+      });
       setIncomeLogs(incomeRes.data.reverse()); // chronological for chart
       setScrapeLogs(scrapeRes.data);
     } catch (err) {
@@ -29,8 +57,14 @@ export default function DeviceDetails() {
   };
 
   useEffect(() => {
-    fetchDetails();
-  }, [id]);
+    if (chartDays === 'custom') {
+      if (startDate && endDate) {
+        fetchDetails();
+      }
+    } else {
+      fetchDetails();
+    }
+  }, [id, chartDays, startDate, endDate]);
 
   const handleScrape = async () => {
     setScraping(true);
@@ -41,6 +75,21 @@ export default function DeviceDetails() {
       console.error(err);
     }
     setScraping(false);
+  };
+
+  const handleEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await api.put(`/devices/${id}`, editFormData);
+      setShowEditModal(false);
+      await fetchDetails();
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to update device: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>;
@@ -58,20 +107,32 @@ export default function DeviceDetails() {
               {device.name} at {device.location}
             </p>
           </div>
-          <button
-            onClick={handleScrape}
-            disabled={scraping}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${scraping ? 'animate-spin' : ''}`} />
-            {scraping ? 'Scraping...' : 'Sync Node'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors"
+            >
+              <Edit className="mr-2 h-4 w-4" /> Edit
+            </button>
+            <button
+              onClick={handleScrape}
+              disabled={scraping}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${scraping ? 'animate-spin' : ''}`} />
+              {scraping ? 'Scraping...' : 'Sync Node'}
+            </button>
+          </div>
         </div>
         <div className="px-4 py-5 sm:p-0">
           <dl className="sm:divide-y sm:divide-slate-700/50">
             <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 hover:bg-slate-800/20 transition-colors">
               <dt className="text-sm font-medium text-slate-400">IP Address</dt>
               <dd className="mt-1 text-sm text-white sm:mt-0 sm:col-span-2 font-mono bg-slate-900 px-2 py-1 rounded inline-block w-fit border border-slate-800">{device.zerotier_ip}</dd>
+            </div>
+            <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 hover:bg-slate-800/20 transition-colors">
+              <dt className="text-sm font-medium text-slate-400">Username</dt>
+              <dd className="mt-1 text-sm text-white sm:mt-0 sm:col-span-2 font-mono">{device.username}</dd>
             </div>
             <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 hover:bg-slate-800/20 transition-colors">
               <dt className="text-sm font-medium text-slate-400">Status</dt>
@@ -95,9 +156,57 @@ export default function DeviceDetails() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-panel sm:rounded-2xl p-6">
-          <h4 className="text-lg font-medium text-white mb-4 flex items-center">
-            <Activity className="h-5 w-5 mr-2 text-blue-500" /> Daily Income History
-          </h4>
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="text-lg font-medium text-white flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-blue-500" /> Daily Income History
+            </h4>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  import('xlsx').then((XLSX) => {
+                    const ws = XLSX.utils.json_to_sheet(incomeLogs.map((log: any) => ({ Date: log.date, Amount: log.amount })));
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Income Logs");
+                    const filename = chartDays === 'custom' ? `${device.name.replace(/\s+/g, '_')}_income_${startDate}_to_${endDate}.xlsx` : `${device.name.replace(/\s+/g, '_')}_income_${chartDays}_days.xlsx`;
+                    XLSX.writeFile(wb, filename);
+                  });
+                }}
+                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-300 rounded-lg px-3 py-2 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export
+              </button>
+              {chartDays === 'custom' && (
+                <>
+                  <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={e => setStartDate(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                  />
+                  <span className="text-slate-400 self-center">to</span>
+                  <input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={e => setEndDate(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                  />
+                </>
+              )}
+              <select
+                value={chartDays}
+                onChange={(e) => setChartDays(e.target.value === 'custom' ? 'custom' : Number(e.target.value))}
+                className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+              >
+                <option value={7}>Last 7 Days</option>
+                <option value={14}>Last 14 Days</option>
+                <option value={30}>Last 30 Days</option>
+                <option value={90}>Last 90 Days</option>
+                <option value={365}>Last 1 Year</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+          </div>
           <div className="h-64 w-full text-xs">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={incomeLogs} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -127,7 +236,7 @@ export default function DeviceDetails() {
                     <span className={`font-mono text-xs px-2 py-0.5 rounded ${log.status === 'success' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
                       {log.status.toUpperCase()}
                     </span>
-                    <span className="text-slate-500 text-xs font-mono">{new Date(log.timestamp).toLocaleString()}</span>
+                    <span className="text-slate-500 text-xs font-mono">{formatUtcSqliteTimestamp(log.timestamp)}</span>
                   </div>
                   <p className="text-slate-300 mt-1">{log.message}</p>
                 </li>
@@ -136,6 +245,52 @@ export default function DeviceDetails() {
           </div>
         </div>
       </div>
+
+      {showEditModal && (
+        <div className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => setShowEditModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom glass-panel border border-slate-700/50 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <form onSubmit={handleEditSubmit}>
+                <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-slate-700/50">
+                  <h3 className="text-lg leading-6 font-semibold text-white mb-4" id="modal-title">Edit Device Information</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300">Device Name</label>
+                      <input type="text" required value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300">Location</label>
+                      <input type="text" value={editFormData.location} onChange={e => setEditFormData({...editFormData, location: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300">IP Address / URL</label>
+                      <input type="text" required value={editFormData.zerotier_ip} onChange={e => setEditFormData({...editFormData, zerotier_ip: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300">Admin Username</label>
+                      <input type="text" required value={editFormData.username} onChange={e => setEditFormData({...editFormData, username: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300">Admin Password (leave blank to keep current)</label>
+                      <input type="password" value={editFormData.password} onChange={e => setEditFormData({...editFormData, password: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                    </div>
+                  </div>
+                </div>
+                <div className="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse bg-slate-900/30">
+                  <button type="submit" disabled={isSaving} className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none disabled:bg-blue-800 disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button type="button" onClick={() => setShowEditModal(false)} className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-600 shadow-sm px-4 py-2 bg-slate-800 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -60,6 +60,54 @@ router.put('/:id', (req, res) => {
   } catch(err: any) {
     res.status(500).json({ error: err.message });
   }
-})
+});
+
+// ZeroTier Sync
+router.post('/zerotier-sync', async (req, res) => {
+  const { zt_token, zt_network_id, default_username, default_password } = req.body;
+  if (!zt_token || !zt_network_id || !default_username || !default_password) {
+    return res.status(400).json({ error: 'Missing required configuration for ZeroTier sync' });
+  }
+
+  try {
+    const axios = (await import('axios')).default;
+    const ztRes = await axios.get(`https://my.zerotier.com/api/v1/network/${zt_network_id}/member`, {
+      headers: { Authorization: `Bearer ${zt_token}` }
+    });
+
+    const members = ztRes.data;
+    let addedCount = 0;
+    let updateCount = 0;
+
+    const existingDevices = db.prepare('SELECT id, zerotier_ip FROM devices').all() as any[];
+    const ipMap = new Map(existingDevices.map(d => [d.zerotier_ip, d.id]));
+
+    for (const member of members) {
+      // Only care about authorized members with assigned IPs
+      if (member.config && member.config.authorized && member.config.ipAssignments && member.config.ipAssignments.length > 0) {
+        const ip = member.config.ipAssignments[0];
+        const name = member.name || member.nodeId; // fallback to node id if no name
+        const description = member.description || '';
+
+        if (ipMap.has(ip)) {
+          // IP already exists, maybe update name? Optional. For now let's just update the name
+          db.prepare('UPDATE devices SET name = ?, location = ? WHERE id = ?')
+            .run(name, description, ipMap.get(ip));
+          updateCount++;
+        } else {
+          // New device!
+          db.prepare('INSERT INTO devices (name, location, zerotier_ip, username, password) VALUES (?, ?, ?, ?, ?)')
+            .run(name, description, ip, default_username, default_password);
+          addedCount++;
+        }
+      }
+    }
+
+    res.json({ success: true, added: addedCount, updated: updateCount });
+  } catch (err: any) {
+    console.error('ZeroTier sync error:', err.response?.data || err.message);
+    res.status(500).json({ error: err.response?.data?.message || err.message || 'ZeroTier sync failed' });
+  }
+});
 
 export default router;

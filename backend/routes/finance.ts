@@ -50,7 +50,15 @@ router.get('/income/today', (req, res) => {
 
 // Get historical income for a device
 router.get('/income/device/:id', (req, res) => {
-  const logs = db.prepare('SELECT * FROM income_logs WHERE device_id = ? ORDER BY date DESC LIMIT 30').all(req.params.id);
+  const { startDate, endDate, days } = req.query;
+  
+  if (startDate && endDate) {
+    const logs = db.prepare('SELECT * FROM income_logs WHERE device_id = ? AND date >= ? AND date <= ? ORDER BY date DESC').all(req.params.id, startDate, endDate);
+    return res.json(logs);
+  }
+
+  const limitDays = parseInt(days as string) || 30;
+  const logs = db.prepare('SELECT * FROM income_logs WHERE device_id = ? ORDER BY date DESC LIMIT ?').all(req.params.id, limitDays);
   res.json(logs);
 });
 
@@ -60,15 +68,29 @@ router.get('/scrape-logs/:id', (req, res) => {
   res.json(logs);
 });
 
-// Analytics chart data (Last 7 days total income)
+// Analytics chart data (Total income over time)
 router.get('/analytics/chart', (req, res) => {
+  const { startDate, endDate, days } = req.query;
+  
+  if (startDate && endDate) {
+    const data = db.prepare(`
+      SELECT date, SUM(amount) as total 
+      FROM income_logs 
+      WHERE date >= ? AND date <= ?
+      GROUP BY date 
+      ORDER BY date DESC 
+    `).all(startDate, endDate);
+    return res.json(data.reverse());
+  }
+
+  const limitDays = parseInt(days as string) || 7;
   const data = db.prepare(`
     SELECT date, SUM(amount) as total 
     FROM income_logs 
     GROUP BY date 
     ORDER BY date DESC 
-    LIMIT 7
-  `).all();
+    LIMIT ?
+  `).all(limitDays);
   
   res.json(data.reverse());
 });

@@ -1,12 +1,31 @@
+import { useState, type FormEvent } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Server, LogOut, Wifi } from 'lucide-react';
+import { LayoutDashboard, Server, LogOut, Settings } from 'lucide-react';
+import api from '../lib/api';
 
 export default function DashboardLayout() {
   const location = useLocation();
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [credentialData, setCredentialData] = useState({ currentPassword: '', newUsername: '', newPassword: '' });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.href = '/login';
+  };
+
+  const handleUpdateCredentials = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsUpdating(true);
+    try {
+      await api.put('/auth/credentials', credentialData);
+      alert('Credentials updated successfully. Please login again.');
+      handleLogout();
+    } catch (err: any) {
+      alert('Failed to update credentials: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const navItems = [
@@ -42,7 +61,14 @@ export default function DashboardLayout() {
             )
           })}
         </nav>
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800 space-y-1">
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="flex w-full items-center px-3 py-2 text-sm font-medium text-slate-400 rounded-md hover:text-white"
+          >
+            <Settings className="mr-3 text-slate-500 h-5 w-5 hover:text-white" />
+            Admin Settings
+          </button>
           <button
             onClick={handleLogout}
             className="flex w-full items-center px-3 py-2 text-sm font-medium text-slate-400 rounded-md hover:text-white"
@@ -64,6 +90,45 @@ export default function DashboardLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => setShowSettingsModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom glass-panel border border-slate-700/50 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <form onSubmit={handleUpdateCredentials}>
+                <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-slate-700/50">
+                  <h3 className="text-lg leading-6 font-semibold text-white mb-4" id="modal-title">Admin Account Settings</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300">Current Password</label>
+                      <input type="password" required value={credentialData.currentPassword} onChange={e => setCredentialData({...credentialData, currentPassword: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300">New Username (leave blank to keep current)</label>
+                      <input type="text" value={credentialData.newUsername} onChange={e => setCredentialData({...credentialData, newUsername: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300">New Password (leave blank to keep current)</label>
+                      <input type="password" value={credentialData.newPassword} onChange={e => setCredentialData({...credentialData, newPassword: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                    </div>
+                  </div>
+                </div>
+                <div className="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse bg-slate-900/30">
+                  <button type="submit" disabled={isUpdating} className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none disabled:bg-blue-800 disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                    {isUpdating ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button type="button" onClick={() => setShowSettingsModal(false)} className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-600 shadow-sm px-4 py-2 bg-slate-800 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

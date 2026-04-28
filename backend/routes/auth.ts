@@ -27,6 +27,39 @@ router.post('/login', (req, res) => {
   res.json({ token, username: user.username });
 });
 
+router.put('/credentials', authenticateToken, (req: any, res: any) => {
+  const { currentPassword, newUsername, newPassword } = req.body;
+  const userId = req.user.id;
+
+  if (!currentPassword || (!newUsername && !newPassword)) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const valid = bcrypt.compareSync(currentPassword, user.password);
+  if (!valid) {
+    return res.status(401).json({ error: 'Incorrect current password' });
+  }
+
+  const updateUsername = newUsername || user.username;
+  let updatePassword = user.password;
+
+  if (newPassword) {
+    updatePassword = bcrypt.hashSync(newPassword, 10);
+  }
+
+  try {
+    db.prepare('UPDATE users SET username = ?, password = ? WHERE id = ?').run(updateUsername, updatePassword, userId);
+    res.json({ success: true, message: 'Credentials updated successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Database error: ' + err.message });
+  }
+});
+
 // Middleware for protecting routes
 export function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
