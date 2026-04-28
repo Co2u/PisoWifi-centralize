@@ -77,7 +77,11 @@ export default function DeviceDetails() {
     setScraping(false);
   };
 
+<<<<<<< HEAD
   const handleEditSubmit = async (e: FormEvent) => {
+=======
+  const handleEditSubmit = async (e: React.FormEvent) => {
+>>>>>>> cc410f30f76e11412450b36652688f97a9bb2ce0
     e.preventDefault();
     setIsSaving(true);
     try {
@@ -294,3 +298,4 @@ export default function DeviceDetails() {
     </div>
   );
 }
+
