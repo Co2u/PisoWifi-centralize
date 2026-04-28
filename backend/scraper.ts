@@ -196,6 +196,15 @@ async function attemptFormLogin(client: ReturnType<typeof wrapper>, baseUrl: str
       const form = passwordField.closest('form');
       const submitUrl = toAbsoluteUrl(loginPageUrl, form.attr('action') || loginPageUrl);
       const method = (form.attr('method') || 'post').toLowerCase();
+      const hasCaptchaChallenge = form.find('input[name="captcha"]').length > 0;
+
+      if (hasCaptchaChallenge) {
+        return {
+          success: false as const,
+          error: `Login at ${loginPageUrl} requires a CAPTCHA challenge, so the scraper cannot automatically open ${getPrimaryStatsUrl(baseUrl)}`,
+        };
+      }
+
       const fields = new URLSearchParams();
       let usernameAssigned = false;
       let passwordAssigned = false;
