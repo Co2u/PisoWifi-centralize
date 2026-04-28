@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
-import { Plus, Trash2, Settings, Wifi, WifiOff, CloudDownload } from 'lucide-react';
+import { Plus, Trash2, Settings, Wifi, WifiOff, CloudDownload, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function DevicesList() {
@@ -9,6 +9,8 @@ export default function DevicesList() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showZtModal, setShowZtModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [scraping, setScraping] = useState(false);
+  const [syncingNodes, setSyncingNodes] = useState<Record<number, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({ name: '', location: '', zerotier_ip: '', username: '', password: '' });
   const [ztFormData, setZtFormData] = useState({ zt_token: '', zt_network_id: '', default_username: 'admin', default_password: '' });
@@ -65,6 +67,31 @@ export default function DevicesList() {
     }
   };
 
+  const handleScrapeAll = async () => {
+    setScraping(true);
+    try {
+      await api.post('/scrape/run');
+      alert('Sync Complete!');
+      fetchDevices();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to sync nodes');
+    }
+    setScraping(false);
+  };
+
+  const handleScrapeSingle = async (id: number) => {
+    setSyncingNodes(prev => ({ ...prev, [id]: true }));
+    try {
+      await api.post(`/scrape/run/${id}`);
+      fetchDevices();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to sync node');
+    }
+    setSyncingNodes(prev => ({ ...prev, [id]: false }));
+  };
+
   const filteredDevices = devices.filter((d: any) => {
     const query = searchQuery.toLowerCase();
     const nameMatch = d.name?.toLowerCase().includes(query);
@@ -100,6 +127,14 @@ export default function DevicesList() {
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
             Export
+          </button>
+          <button
+            onClick={handleScrapeAll}
+            disabled={scraping}
+            className="inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${scraping ? 'animate-spin' : ''}`} />
+            {scraping ? 'Syncing...' : 'Sync All Nodes'}
           </button>
           <button
             onClick={() => setShowZtModal(true)}
@@ -165,10 +200,18 @@ export default function DevicesList() {
                   </div>
                 </div>
                 <div className="ml-5 flex-shrink-0 flex items-center space-x-2">
-                  <button onClick={() => handleDelete(device.id)} className="p-2 text-slate-500 hover:text-red-400 rounded-full hover:bg-slate-800 transition-colors">
+                  <button 
+                    onClick={() => handleScrapeSingle(device.id)} 
+                    disabled={syncingNodes[device.id]}
+                    className="p-2 text-slate-500 hover:text-green-400 rounded-full hover:bg-slate-800 transition-colors disabled:opacity-50"
+                    title="Sync Node"
+                  >
+                    <RefreshCw className={`h-5 w-5 ${syncingNodes[device.id] ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button onClick={() => handleDelete(device.id)} className="p-2 text-slate-500 hover:text-red-400 rounded-full hover:bg-slate-800 transition-colors" title="Delete Node">
                     <Trash2 className="h-5 w-5" />
                   </button>
-                  <Link to={`/devices/${device.id}`} className="p-2 text-slate-500 hover:text-blue-400 rounded-full hover:bg-slate-800 transition-colors">
+                  <Link to={`/devices/${device.id}`} className="p-2 text-slate-500 hover:text-blue-400 rounded-full hover:bg-slate-800 transition-colors" title="Settings">
                     <Settings className="h-5 w-5" />
                   </Link>
                 </div>
