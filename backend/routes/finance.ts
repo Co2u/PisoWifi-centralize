@@ -2,6 +2,7 @@ import { Router } from 'express';
 import db from '../db.js';
 import { authenticateToken } from './auth.js';
 import { scrapeDevice, scrapeAllDevices } from '../scraper.js';
+import { getAppDateString } from '../time.js';
 
 const router = Router();
 router.use(authenticateToken);
@@ -20,7 +21,7 @@ router.post('/scrape/run/:id', async (req, res) => {
 
 // Analytics Dashboard Overview
 router.get('/analytics/overview', (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getAppDateString();
   
   const totalIncomeTodayRow = db.prepare('SELECT SUM(amount) as total FROM income_logs WHERE date = ?').get(today) as any;
   const totalIncomeAllTimeRow = db.prepare('SELECT SUM(amount) as total FROM income_logs').get() as any;
@@ -37,7 +38,7 @@ router.get('/analytics/overview', (req, res) => {
 
 // Income by Device (Today)
 router.get('/income/today', (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getAppDateString();
   const logs = db.prepare(`
     SELECT d.id as device_id, d.name, d.location, i.amount 
     FROM devices d

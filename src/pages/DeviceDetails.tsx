@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../lib/api';
+import { formatUtcSqliteTimestamp } from '../lib/utils';
 import { RefreshCw, Activity, Calendar, Edit } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -228,7 +229,7 @@ export default function DeviceDetails() {
                     <span className={`font-mono text-xs px-2 py-0.5 rounded ${log.status === 'success' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
                       {log.status.toUpperCase()}
                     </span>
-                    <span className="text-slate-500 text-xs font-mono">{new Date(log.timestamp).toLocaleString()}</span>
+                    <span className="text-slate-500 text-xs font-mono">{formatUtcSqliteTimestamp(log.timestamp)}</span>
                   </div>
                   <p className="text-slate-300 mt-1">{log.message}</p>
                 </li>

@@ -4,6 +4,7 @@ import { CookieJar } from 'tough-cookie';
 import * as cheerio from 'cheerio';
 import CryptoJS from 'crypto-js';
 import db from './db.js';
+import { getAppDateString } from './time.js';
 
 const REQUEST_TIMEOUT = 30000;
 const LOGIN_ERROR_PATTERNS = [
@@ -343,13 +344,15 @@ export async function scrapeDevice(deviceId: number) {
     }
 
     const incomeAmount = extractIncomeAmount(statsPage.html);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getAppDateString();
     const metadata = JSON.stringify({ source: 'scrape', statsUrl: statsPage.url });
 
-    const existingLog = db.prepare('SELECT id FROM income_logs WHERE device_id = ? AND date = ?').get(device.id, today);
+    const existingLog = db.prepare('SELECT id, amount FROM income_logs WHERE device_id = ? AND date = ?').get(device.id, today) as { id: number, amount: number } | undefined;
     if (existingLog) {
+      const storedAmount = Number(existingLog.amount) || 0;
+      const nextAmount = Math.max(storedAmount, incomeAmount);
       db.prepare('UPDATE income_logs SET amount = ?, raw_value = ?, created_at = CURRENT_TIMESTAMP WHERE device_id = ? AND date = ?')
-        .run(incomeAmount, metadata, device.id, today);
+        .run(nextAmount, metadata, device.id, today);
     } else {
       db.prepare('INSERT INTO income_logs (device_id, amount, date, raw_value) VALUES (?, ?, ?, ?)')
         .run(device.id, incomeAmount, today, metadata);

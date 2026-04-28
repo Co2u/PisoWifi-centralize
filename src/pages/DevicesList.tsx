@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
+import { parseUtcSqliteTimestamp } from '../lib/utils';
 import { Plus, Trash2, Settings, Wifi, WifiOff, CloudDownload, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -194,7 +195,7 @@ export default function DevicesList() {
                     </div>
                     <div className="mt-2 flex items-center text-xs text-slate-500 sm:mt-0 font-mono">
                       <p>
-                        Last seen: {device.last_seen ? formatDistanceToNow(new Date(device.last_seen), { addSuffix: true }) : 'Never'}
+                        Last seen: {device.last_seen ? formatDistanceToNow(parseUtcSqliteTimestamp(device.last_seen), { addSuffix: true }) : 'Never'}
                       </p>
                     </div>
                   </div>
