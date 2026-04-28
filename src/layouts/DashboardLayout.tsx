@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Server, LogOut, Settings } from 'lucide-react';
 import api from '../lib/api';
@@ -14,7 +14,7 @@ export default function DashboardLayout() {
     window.location.href = '/login';
   };
 
-  const handleUpdateCredentials = async (e: FormEvent) => {
+  const handleUpdateCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdating(true);
     try {

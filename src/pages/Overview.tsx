@@ -195,7 +195,7 @@ export default function Overview() {
         </div>
 
         {/* Top Devices Today */}
-        <div className="glass-panel rounded-2xl p-0 overflow-hidden flex flex-col">
+        <div className="glass-panel rounded-2xl p-0 overflow-hidden flex flex-col h-[400px]">
           <div className="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/30">
             <h4 className="font-semibold text-white">Today's Collections</h4>
           </div>

@@ -9,6 +9,7 @@ export default function DevicesList() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showZtModal, setShowZtModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({ name: '', location: '', zerotier_ip: '', username: '', password: '' });
   const [ztFormData, setZtFormData] = useState({ zt_token: '', zt_network_id: '', default_username: 'admin', default_password: '' });
 
@@ -64,6 +65,14 @@ export default function DevicesList() {
     }
   };
 
+  const filteredDevices = devices.filter((d: any) => {
+    const query = searchQuery.toLowerCase();
+    const nameMatch = d.name?.toLowerCase().includes(query);
+    const locMatch = d.location?.toLowerCase().includes(query);
+    const ipMatch = d.zerotier_ip?.toLowerCase().includes(query);
+    return nameMatch || locMatch || ipMatch;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-transparent">
@@ -75,7 +84,7 @@ export default function DevicesList() {
           <button
             onClick={() => {
               import('xlsx').then((XLSX) => {
-                const ws = XLSX.utils.json_to_sheet(devices.map((d: any) => ({ 
+                const ws = XLSX.utils.json_to_sheet(filteredDevices.map((d: any) => ({ 
                   Name: d.name, 
                   Location: d.location, 
                   IP: d.zerotier_ip, 
@@ -109,12 +118,24 @@ export default function DevicesList() {
 
       <div className="glass-panel overflow-hidden sm:rounded-2xl mt-4">
 
-        <div className="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/30">
-          <h3 className="font-semibold text-white">PisoWiFi Nodes Overview</h3>
-          <span className="text-xs text-slate-400">Manage connections</span>
+        <div className="p-4 border-b border-slate-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900/30 gap-4">
+          <div>
+            <h3 className="font-semibold text-white">PisoWiFi Nodes Overview</h3>
+            <span className="text-xs text-slate-400">Manage connections</span>
+          </div>
+          <div className="w-full sm:w-64 relative">
+            <input 
+              type="text" 
+              placeholder="Search by name, location or IP..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 pl-9 transition-colors"
+            />
+            <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
         </div>
         <ul className="divide-y divide-slate-700/50">
-          {devices.map((device: any) => (
+          {filteredDevices.map((device: any) => (
             <li key={device.id}>
               <div className="px-4 py-4 sm:px-6 hover:bg-slate-800/30 transition-colors flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -154,6 +175,11 @@ export default function DevicesList() {
               </div>
             </li>
           ))}
+          {filteredDevices.length === 0 && devices.length > 0 && (
+            <li className="px-4 py-8 text-center text-slate-500">
+              No devices matches your search.
+            </li>
+          )}
           {devices.length === 0 && (
             <li className="px-4 py-8 text-center text-slate-500">
               No devices found. Click "Add Device" to get started.
