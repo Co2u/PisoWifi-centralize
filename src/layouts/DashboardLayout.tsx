@@ -1,14 +1,19 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Server, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Server, LogOut, Settings, Menu, X } from 'lucide-react';
 import api from '../lib/api';
 
 export default function DashboardLayout() {
   const location = useLocation();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [credentialData, setCredentialData] = useState({ currentPassword: '', newUsername: '', newPassword: '' });
   const [cronInterval, setCronInterval] = useState('60');
   const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (showSettingsModal) {
@@ -50,14 +55,31 @@ export default function DashboardLayout() {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-950 font-sans text-slate-50">
+    <div className="flex h-screen bg-slate-950 font-sans text-slate-50 overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-950 flex-shrink-0 flex flex-col border-r border-slate-800">
-        <div className="h-16 flex items-center px-6 border-b border-slate-800 gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white mb-0">P</div>
-          <h1 className="text-xl font-bold tracking-tight text-white">PisoWiFi Central</h1>
+      <aside 
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-950 flex flex-col border-r border-slate-800 transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white mb-0">P</div>
+            <h1 className="text-xl font-bold tracking-tight text-white truncate">PisoWiFi Central</h1>
+          </div>
+          <button className="md:hidden text-slate-400 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
+            <X className="h-6 w-6" />
+          </button>
         </div>
-        <nav className="flex-1 px-4 py-4 space-y-1">
+        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
             const Icon = item.icon;
@@ -67,8 +89,8 @@ export default function DashboardLayout() {
                 to={item.path}
                 className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
                   isActive
-                    ? 'text-white'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'text-white bg-slate-800'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                 }`}
               >
                 <Icon className={`mr-3 flex-shrink-0 h-5 w-5 ${isActive ? 'text-blue-500' : 'text-slate-500'}`} />
@@ -77,17 +99,20 @@ export default function DashboardLayout() {
             )
           })}
         </nav>
-        <div className="p-4 border-t border-slate-800 space-y-1">
+        <div className="p-4 border-t border-slate-800 space-y-1 flex-shrink-0">
           <button
-            onClick={() => setShowSettingsModal(true)}
-            className="flex w-full items-center px-3 py-2 text-sm font-medium text-slate-400 rounded-md hover:text-white"
+            onClick={() => {
+              setShowSettingsModal(true);
+              setIsSidebarOpen(false);
+            }}
+            className="flex w-full items-center px-3 py-2 text-sm font-medium text-slate-400 rounded-md hover:text-white hover:bg-slate-800/50"
           >
             <Settings className="mr-3 text-slate-500 h-5 w-5 hover:text-white" />
             Admin Settings
           </button>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center px-3 py-2 text-sm font-medium text-slate-400 rounded-md hover:text-white"
+            className="flex w-full items-center px-3 py-2 text-sm font-medium text-slate-400 rounded-md hover:text-white hover:bg-slate-800/50"
           >
             <LogOut className="mr-3 text-slate-500 h-5 w-5 hover:text-white" />
             Sign Out
@@ -96,14 +121,22 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto custom-scroll">
-        <header className="h-16 flex justify-between items-center px-8 mb-4 border-b border-slate-800">
-          <h2 className="text-xl font-bold tracking-tight text-white capitalize">
+      <main className="flex-1 flex flex-col w-full min-w-0 overflow-hidden">
+        <header className="h-16 flex items-center px-4 sm:px-8 border-b border-slate-800 shrink-0">
+          <button 
+            className="mr-4 md:hidden text-slate-400 hover:text-white focus:outline-none" 
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          <h2 className="text-xl font-bold tracking-tight text-white capitalize truncate">
             {location.pathname === '/' ? 'PISOFi Centralized Monitoring' : location.pathname.split('/')[1]}
           </h2>
         </header>
-        <div className="px-8 pb-8">
-          <Outlet />
+        <div className="flex-1 overflow-auto custom-scroll w-full">
+          <div className="p-4 sm:p-8 pb-8">
+            <Outlet />
+          </div>
         </div>
       </main>
 

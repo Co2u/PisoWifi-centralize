@@ -60,12 +60,12 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-transparent">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-transparent gap-4">
         <div>
           <h3 className="text-xl font-bold tracking-tight text-white">Dashboard Summary</h3>
           <p className="text-slate-400 text-sm">System Overview & Analytics</p>
         </div>
-        <div className="flex gap-4 items-center">
+        <div className="flex flex-wrap gap-4 items-center w-full sm:w-auto">
           <div className="px-3 py-1 bg-green-500/10 border border-green-500/20 text-green-400 rounded-full text-xs flex items-center gap-2">
             <span className="status-dot bg-green-500 online-glow animate-pulse"></span>
             Sync Active
@@ -73,7 +73,7 @@ export default function Overview() {
           <button
             onClick={handleScrapeAll}
             disabled={scraping}
-            className="flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50 transition-colors"
+            className="flex-1 sm:flex-none flex justify-center items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50 transition-colors whitespace-nowrap"
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${scraping ? 'animate-spin' : ''}`} />
             {scraping ? 'Scraping...' : 'Manual Scrape Now'}
@@ -120,9 +120,9 @@ export default function Overview() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
         <div className="glass-panel rounded-2xl p-6 lg:col-span-2">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
             <h4 className="text-lg font-medium text-white">Revenue Over Time</h4>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => {
                   import('xlsx').then((XLSX) => {
@@ -133,33 +133,33 @@ export default function Overview() {
                     XLSX.writeFile(wb, filename);
                   });
                 }}
-                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-300 rounded-lg px-3 py-2 transition-colors flex items-center gap-2"
+                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-300 rounded-lg px-3 py-2 transition-colors flex items-center gap-2 whitespace-nowrap"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 Export
               </button>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 {chartDays === 'custom' && (
-                  <>
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <input 
                       type="date" 
                       value={startDate} 
                       onChange={e => setStartDate(e.target.value)}
-                      className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                      className="flex-1 min-w-[120px] bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
                     />
                     <span className="text-slate-400 self-center">to</span>
                     <input 
                       type="date" 
                       value={endDate} 
                       onChange={e => setEndDate(e.target.value)}
-                      className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                      className="flex-1 min-w-[120px] bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
                     />
-                  </>
+                  </div>
                 )}
                 <select
                   value={chartDays}
                   onChange={(e) => setChartDays(e.target.value === 'custom' ? 'custom' : Number(e.target.value))}
-                  className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                  className="flex-1 sm:flex-none min-w-[140px] bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
                 >
                   <option value={7}>Last 7 Days</option>
                   <option value={14}>Last 14 Days</option>

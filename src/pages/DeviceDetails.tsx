@@ -91,7 +91,7 @@ export default function DeviceDetails() {
   return (
     <div className="space-y-6">
       <div className="glass-panel overflow-hidden sm:rounded-2xl">
-        <div className="px-4 py-5 sm:px-6 flex justify-between items-center bg-slate-900/30 border-b border-slate-700/50">
+        <div className="px-4 py-5 sm:px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900/30 border-b border-slate-700/50 gap-4">
           <div>
             <h3 className="text-lg leading-6 font-semibold text-white">
               Device Information
@@ -100,17 +100,17 @@ export default function DeviceDetails() {
               {device.name} at {device.location}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 w-full sm:w-auto">
             <button
               onClick={() => setShowEditModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors"
+              className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors"
             >
               <Edit className="mr-2 h-4 w-4" /> Edit
             </button>
             <button
               onClick={handleScrape}
               disabled={scraping}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${scraping ? 'animate-spin' : ''}`} />
               {scraping ? 'Scraping...' : 'Sync Node'}
@@ -149,11 +149,11 @@ export default function DeviceDetails() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-panel sm:rounded-2xl p-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
             <h4 className="text-lg font-medium text-white flex items-center">
               <Activity className="h-5 w-5 mr-2 text-blue-500" /> Daily Income History
             </h4>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => {
                   import('xlsx').then((XLSX) => {
@@ -164,33 +164,34 @@ export default function DeviceDetails() {
                     XLSX.writeFile(wb, filename);
                   });
                 }}
-                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-300 rounded-lg px-3 py-2 transition-colors flex items-center gap-2"
+                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-300 rounded-lg px-3 py-2 transition-colors flex items-center gap-2 whitespace-nowrap"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 Export
               </button>
-              {chartDays === 'custom' && (
-                <>
-                  <input 
-                    type="date" 
-                    value={startDate} 
-                    onChange={e => setStartDate(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
-                  />
-                  <span className="text-slate-400 self-center">to</span>
-                  <input 
-                    type="date" 
-                    value={endDate} 
-                    onChange={e => setEndDate(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
-                  />
-                </>
-              )}
-              <select
-                value={chartDays}
-                onChange={(e) => setChartDays(e.target.value === 'custom' ? 'custom' : Number(e.target.value))}
-                className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
-              >
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                {chartDays === 'custom' && (
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <input 
+                      type="date" 
+                      value={startDate} 
+                      onChange={e => setStartDate(e.target.value)}
+                      className="flex-1 min-w-[120px] bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                    />
+                    <span className="text-slate-400 self-center">to</span>
+                    <input 
+                      type="date" 
+                      value={endDate} 
+                      onChange={e => setEndDate(e.target.value)}
+                      className="flex-1 min-w-[120px] bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                    />
+                  </div>
+                )}
+                <select
+                  value={chartDays}
+                  onChange={(e) => setChartDays(e.target.value === 'custom' ? 'custom' : Number(e.target.value))}
+                  className="flex-1 sm:flex-none min-w-[140px] bg-slate-800 border border-slate-700 text-sm text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 transition-colors"
+                >
                 <option value={7}>Last 7 Days</option>
                 <option value={14}>Last 14 Days</option>
                 <option value={30}>Last 30 Days</option>
@@ -198,6 +199,7 @@ export default function DeviceDetails() {
                 <option value={365}>Last 1 Year</option>
                 <option value="custom">Custom Range</option>
               </select>
+              </div>
             </div>
           </div>
           <div className="h-64 w-full text-xs">

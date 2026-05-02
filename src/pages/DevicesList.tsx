@@ -103,12 +103,12 @@ export default function DevicesList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-transparent">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-transparent gap-4">
         <div>
           <h3 className="text-xl font-bold tracking-tight text-white">Registered Devices</h3>
           <p className="text-slate-400 text-sm">Manage PisoWiFi Nodes</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
           <button
             onClick={() => {
               import('xlsx').then((XLSX) => {
@@ -124,7 +124,7 @@ export default function DevicesList() {
                 XLSX.writeFile(wb, `pisowifi_nodes.xlsx`);
               });
             }}
-            className="inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none transition-colors"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none transition-colors whitespace-nowrap"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
             Export
@@ -132,20 +132,20 @@ export default function DevicesList() {
           <button
             onClick={handleScrapeAll}
             disabled={scraping}
-            className="inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none disabled:opacity-50 transition-colors"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none disabled:opacity-50 transition-colors whitespace-nowrap"
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${scraping ? 'animate-spin' : ''}`} />
-            {scraping ? 'Syncing...' : 'Sync All Nodes'}
+            {scraping ? 'Syncing...' : 'Sync All'}
           </button>
           <button
             onClick={() => setShowZtModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none transition-colors"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white focus:outline-none transition-colors whitespace-nowrap"
           >
             <CloudDownload className="mr-2 h-4 w-4" /> Import ZeroTier
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors whitespace-nowrap"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Device
           </button>
@@ -173,7 +173,7 @@ export default function DevicesList() {
         <ul className="divide-y divide-slate-700/50">
           {filteredDevices.map((device: any) => (
             <li key={device.id}>
-              <div className="px-4 py-4 sm:px-6 hover:bg-slate-800/30 transition-colors flex items-center justify-between">
+              <div className="px-4 py-4 sm:px-6 hover:bg-slate-800/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-blue-400 truncate hover:text-blue-300">
@@ -187,20 +187,20 @@ export default function DevicesList() {
                       )}
                     </div>
                   </div>
-                  <div className="mt-2 flex justify-between">
+                  <div className="mt-2 flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
                     <div className="sm:flex">
-                      <p className="flex items-center text-xs text-slate-400 font-mono">
+                      <p className="flex items-center text-xs text-slate-400 font-mono break-all">
                         {device.location} &middot; IP: {device.zerotier_ip}
                       </p>
                     </div>
-                    <div className="mt-2 flex items-center text-xs text-slate-500 sm:mt-0 font-mono">
+                    <div className="flex items-center text-xs text-slate-500 font-mono">
                       <p>
                         Last seen: {device.last_seen ? formatDistanceToNow(parseUtcSqliteTimestamp(device.last_seen), { addSuffix: true }) : 'Never'}
                       </p>
                     </div>
                   </div>
                 </div>
-                <div className="ml-5 flex-shrink-0 flex items-center space-x-2">
+                <div className="flex-shrink-0 flex items-center space-x-2 self-end sm:self-auto">
                   <button 
                     onClick={() => handleScrapeSingle(device.id)} 
                     disabled={syncingNodes[device.id]}
@@ -254,7 +254,7 @@ export default function DevicesList() {
                       <label className="block text-sm font-medium text-slate-300">ZeroTier IP / Host</label>
                       <input type="text" required value={formData.zerotier_ip} onChange={e => setFormData({...formData, zerotier_ip: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors font-mono" placeholder="10.147.17.x" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-300">Admin Username</label>
                         <input type="text" required value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
@@ -298,7 +298,7 @@ export default function DevicesList() {
                       <label className="block text-sm font-medium text-slate-300">Network ID</label>
                       <input type="text" required value={ztFormData.zt_network_id} onChange={e => setZtFormData({...ztFormData, zt_network_id: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors font-mono" placeholder="16 char Network ID" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-300">Default PisoWiFi Username</label>
                         <input type="text" required value={ztFormData.default_username} onChange={e => setZtFormData({...ztFormData, default_username: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
