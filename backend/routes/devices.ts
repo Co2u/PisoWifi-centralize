@@ -8,13 +8,13 @@ router.use(authenticateToken);
 
 // Get all devices
 router.get('/', (req, res) => {
-  const devices = db.prepare('SELECT id, name, location, zerotier_ip, status, last_seen FROM devices ORDER BY name ASC').all();
+  const devices = db.prepare('SELECT id, name, location, zerotier_ip, status, last_seen, active_users FROM devices ORDER BY name ASC').all();
   res.json(devices);
 });
 
 // Get single device
 router.get('/:id', (req, res) => {
-  const device = db.prepare('SELECT id, name, location, zerotier_ip, username, status, last_seen FROM devices WHERE id = ?').get(req.params.id);
+  const device = db.prepare('SELECT id, name, location, zerotier_ip, username, status, last_seen, active_users FROM devices WHERE id = ?').get(req.params.id);
   if (!device) return res.status(404).json({ error: 'Device not found' });
   res.json(device);
 });

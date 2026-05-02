@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent, type FormEvent } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Server, LogOut, Settings, Menu, X, Download, Upload } from 'lucide-react';
 import api from '../lib/api';
@@ -55,7 +55,7 @@ export default function DashboardLayout() {
     window.open(`${api.defaults.baseURL}/settings/backup?token=${localStorage.getItem('token')}`, '_blank');
   };
 
-  const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRestore = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
