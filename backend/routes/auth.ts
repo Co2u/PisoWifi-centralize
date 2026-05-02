@@ -63,7 +63,11 @@ router.put('/credentials', authenticateToken, (req: any, res: any) => {
 // Middleware for protecting routes
 export function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token && req.query.token) {
+    token = req.query.token as string;
+  }
 
   if (!token) return res.sendStatus(401);
 

@@ -1,6 +1,6 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Server, LogOut, Settings, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Server, LogOut, Settings, Menu, X, Download, Upload } from 'lucide-react';
 import api from '../lib/api';
 
 export default function DashboardLayout() {
@@ -10,6 +10,8 @@ export default function DashboardLayout() {
   const [credentialData, setCredentialData] = useState({ currentPassword: '', newUsername: '', newPassword: '' });
   const [cronInterval, setCronInterval] = useState('60');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsSidebarOpen(false);
@@ -46,6 +48,40 @@ export default function DashboardLayout() {
       alert('Failed to update settings: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleBackup = () => {
+    window.open(`${api.defaults.baseURL}/settings/backup?token=${localStorage.getItem('token')}`, '_blank');
+  };
+
+  const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm('Are you sure you want to restore the database? This will overwrite all current data.')) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('database', file);
+
+    setIsRestoring(true);
+    try {
+      await api.post('/settings/restore', formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      alert('Database restored successfully! The page will now reload.');
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to restore database. Ensure it is a valid backup.');
+    } finally {
+      setIsRestoring(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -142,11 +178,11 @@ export default function DashboardLayout() {
 
       {/* Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div className="fixed z-[60] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => setShowSettingsModal(false)}></div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom glass-panel border border-slate-700/50 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="inline-block align-bottom glass-panel border border-slate-700/50 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle w-full sm:max-w-lg sm:w-full">
               <form onSubmit={handleUpdateCredentials}>
                 <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-slate-700/50">
                   <h3 className="text-lg leading-6 font-semibold text-white mb-4" id="modal-title">Admin Account Settings</h3>
@@ -183,6 +219,41 @@ export default function DashboardLayout() {
                     <div>
                       <label className="block text-sm font-medium text-slate-300">New Password (leave blank to keep current)</label>
                       <input type="password" value={credentialData.newPassword} onChange={e => setCredentialData({...credentialData, newPassword: e.target.value})} className="mt-1 block w-full rounded-lg border-slate-700 bg-slate-900/50 text-white placeholder-slate-500 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors" />
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-700/30">
+                      <h4 className="text-sm font-medium text-slate-400 mb-3">Database Management</h4>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="button"
+                          onClick={handleBackup}
+                          className="flex items-center justify-center px-4 py-2 border border-slate-600 rounded-lg shadow-sm text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Backup Database
+                        </button>
+                        <div>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".sqlite,.db"
+                            onChange={handleRestore}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isRestoring}
+                            className="w-full sm:w-auto flex items-center justify-center px-4 py-2 border border-red-600/30 rounded-lg shadow-sm text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            {isRestoring ? 'Restoring...' : 'Restore Database'}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Create a backup of your data (.sqlite format) or restore from an existing backup. Restoring will overwrite all current data.
+                      </p>
                     </div>
                   </div>
                 </div>
