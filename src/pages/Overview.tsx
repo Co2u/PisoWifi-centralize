@@ -90,11 +90,20 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* Income All Time */}
+        {/* Income Selected Range */}
         <div className="glass-panel rounded-2xl p-5">
-          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Total Income (All Time)</p>
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">
+            {chartDays === 7 ? 'Total Income (Last 7 Days)' : 
+             chartDays === 14 ? 'Total Income (Last 14 Days)' : 
+             chartDays === 30 ? 'Total Income (Last 30 Days)' : 
+             chartDays === 90 ? 'Total Income (Last 90 Days)' : 
+             chartDays === 365 ? 'Total Income (Last 1 Year)' : 
+             'Total Income (Selected Range)'}
+          </p>
           <div className="flex items-end gap-2">
-            <span className="text-2xl font-bold text-white font-mono">₱{stats.incomeAllTime.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-white font-mono">
+              ₱{chartData.reduce((sum, d: any) => sum + (d.total || 0), 0).toFixed(2)}
+            </span>
           </div>
         </div>
 
