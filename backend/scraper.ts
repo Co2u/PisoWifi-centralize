@@ -78,6 +78,38 @@ function extractIncomeAmount(html: string) {
   return 0;
 }
 
+function extractActiveUsers(html: string) {
+  const $ = cheerio.load(html);
+  
+  // The screenshot shows "Wifi Clients" in a blue box on the Dashboard
+  const candidateTexts = [
+    $('*:contains("Wifi Clients")').last().parent().text(),
+    $('*:contains("Wifi Clients")').last().text(),
+    $('.info-box:contains("Wifi Clients")').find('.info-box-number').text(),
+    $('.small-box:contains("Wifi Clients")').find('h3, .inner h3').text(),
+    
+    // Fallbacks just in case
+    $('*:contains("Active Users")').last().parent().text(),
+    $('*:contains("Active Users")').last().text(),
+    $('.info-box:contains("Active Users") .info-box-number').first().text(),
+    $('.small-box:contains("Active Users") .inner h3').first().text(),
+    $('#active-users').text(),
+    $('.active-users').first().text(),
+    $('div:contains("Online Users")').next().text(),
+    $('*:contains("Connected Clients")').last().parent().text(),
+  ].filter(Boolean);
+
+  for (const candidate of candidateTexts) {
+    const cleaned = candidate.replace(/[^0-9]/g, '');
+    const amount = parseInt(cleaned, 10);
+    if (!Number.isNaN(amount)) {
+      return amount;
+    }
+  }
+
+  return 0;
+}
+
 function deviceStillExists(deviceId: number) {
   const row = db.prepare('SELECT id FROM devices WHERE id = ?').get(deviceId) as { id: number } | undefined;
   return Boolean(row);
@@ -344,6 +376,7 @@ export async function scrapeDevice(deviceId: number) {
     }
 
     const incomeAmount = extractIncomeAmount(statsPage.html);
+    const activeUsers = extractActiveUsers(statsPage.html);
     const today = getAppDateString();
     const metadata = JSON.stringify({ source: 'scrape', statsUrl: statsPage.url });
 
@@ -359,13 +392,13 @@ export async function scrapeDevice(deviceId: number) {
     }
 
     if (deviceStillExists(device.id)) {
-      db.prepare("UPDATE devices SET status = 'online', last_seen = CURRENT_TIMESTAMP WHERE id = ?").run(device.id);
+      db.prepare("UPDATE devices SET status = 'online', last_seen = CURRENT_TIMESTAMP, active_users = ? WHERE id = ?").run(activeUsers, device.id);
     }
 
-    console.log(`[Scraper] Device ${deviceId} scrape success: PHP ${incomeAmount}`);
-    writeScrapeLog(device.id, 'success', `Scraped daily income: PHP ${incomeAmount}`);
+    console.log(`[Scraper] Device ${deviceId} scrape success: PHP ${incomeAmount}, Active Users: ${activeUsers}`);
+    writeScrapeLog(device.id, 'success', `Scraped daily income: PHP ${incomeAmount}, Active Users: ${activeUsers}`);
 
-    return { success: true, amount: incomeAmount };
+    return { success: true, amount: incomeAmount, activeUsers };
   } catch (err: any) {
     let errorMsg = err.message || 'Unknown scrape error';
     if (err.response) {

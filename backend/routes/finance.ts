@@ -27,12 +27,14 @@ router.get('/analytics/overview', (req, res) => {
   const totalIncomeAllTimeRow = db.prepare('SELECT SUM(amount) as total FROM income_logs').get() as any;
   
   const devicesStatus = db.prepare('SELECT status, COUNT(*) as count FROM devices GROUP BY status').all() as any[];
+  const activeUsersRow = db.prepare("SELECT SUM(active_users) as total FROM devices WHERE status = 'online'").get() as any;
   
   res.json({
     incomeToday: totalIncomeTodayRow?.total || 0,
     incomeAllTime: totalIncomeAllTimeRow?.total || 0,
-    onlineDevices: devicesStatus.find(s => s.status === 'online')?.count || 0,
-    offlineDevices: devicesStatus.find(s => s.status === 'offline')?.count || 0,
+    onlineDevices: devicesStatus.find((s: any) => s.status === 'online')?.count || 0,
+    offlineDevices: devicesStatus.find((s: any) => s.status === 'offline')?.count || 0,
+    activeUsers: activeUsersRow?.total || 0,
   });
 });
 

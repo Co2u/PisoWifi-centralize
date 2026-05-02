@@ -81,7 +81,7 @@ export default function Overview() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5 lg:grid-cols-3">
         {/* Income Today */}
         <div className="glass-panel rounded-2xl p-5">
           <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Income Today</p>
@@ -104,6 +104,15 @@ export default function Overview() {
             <span className="text-2xl font-bold text-white font-mono">
               ₱{chartData.reduce((sum, d: any) => sum + (d.total || 0), 0).toFixed(2)}
             </span>
+          </div>
+        </div>
+
+        {/* Active Connected Users */}
+        <div className="glass-panel rounded-2xl p-5">
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Total Active Users</p>
+          <div className="flex items-end gap-2">
+            <span className="text-2xl font-bold text-white font-mono">{(stats as any).activeUsers || 0}</span>
+            <span className="text-blue-400 text-xs mb-1 font-medium">Clients</span>
           </div>
         </div>
 

@@ -48,9 +48,16 @@ export function initDB() {
       password TEXT NOT NULL,
       status TEXT DEFAULT 'offline',
       last_seen DATETIME,
+      active_users INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  try {
+    db.exec(`ALTER TABLE devices ADD COLUMN active_users INTEGER DEFAULT 0;`);
+  } catch (e) {
+    // Column might already exist
+  }
 
   // Income Logs
   db.exec(`

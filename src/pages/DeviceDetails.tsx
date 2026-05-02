@@ -138,6 +138,16 @@ export default function DeviceDetails() {
               </dd>
             </div>
             <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 hover:bg-slate-800/20 transition-colors">
+              <dt className="text-sm font-medium text-slate-400">Active Users</dt>
+              <dd className="mt-1 text-sm text-white sm:mt-0 sm:col-span-2">
+                {device.active_users !== undefined && device.status === 'online' ? (
+                   <span className="font-mono bg-blue-500/10 text-blue-400 px-2 py-1 rounded inline-block w-fit border border-blue-500/20 font-bold">{device.active_users}</span>
+                ) : (
+                   <span className="text-slate-500 italic">Not available</span>
+                )}
+              </dd>
+            </div>
+            <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 hover:bg-slate-800/20 transition-colors">
               <dt className="text-sm font-medium text-slate-400">Total Recorded Income</dt>
               <dd className="mt-1 text-sm text-blue-400 sm:mt-0 sm:col-span-2 font-bold font-mono">
                 ₱{incomeLogs.reduce((acc: number, curr: any) => acc + curr.amount, 0).toFixed(2)}

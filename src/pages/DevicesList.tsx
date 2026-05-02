@@ -188,12 +188,17 @@ export default function DevicesList() {
                     </div>
                   </div>
                   <div className="mt-2 flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
-                    <div className="sm:flex">
-                      <p className="flex items-center text-xs text-slate-400 font-mono break-all">
+                    <div className="sm:flex flex-col">
+                      <p className="flex items-center text-xs text-slate-400 font-mono break-all mb-1">
                         {device.location} &middot; IP: {device.zerotier_ip}
                       </p>
                     </div>
-                    <div className="flex items-center text-xs text-slate-500 font-mono">
+                    <div className="flex flex-wrap items-center text-xs text-slate-500 font-mono gap-3 sm:justify-end">
+                      {device.active_users !== undefined && device.status === 'online' && (
+                        <span className="flex items-center bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20">
+                          Active Users: <span className="font-bold ml-1">{device.active_users}</span>
+                        </span>
+                      )}
                       <p>
                         Last seen: {device.last_seen ? formatDistanceToNow(parseUtcSqliteTimestamp(device.last_seen), { addSuffix: true }) : 'Never'}
                       </p>
