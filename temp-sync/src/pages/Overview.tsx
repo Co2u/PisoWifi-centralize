@@ -137,7 +137,7 @@ export default function Overview() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
-        <div className="glass-panel rounded-2xl p-6 lg:col-span-2 flex flex-col h-full">
+        <div className="glass-panel rounded-2xl p-6 lg:col-span-2">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
             <h4 className="text-lg font-medium text-white">Revenue Over Time</h4>
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -189,7 +189,7 @@ export default function Overview() {
               </div>
             </div>
           </div>
-          <div className="flex-1 min-h-[300px] w-full text-xs">
+          <div className="h-72 w-full text-xs">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
@@ -213,7 +213,7 @@ export default function Overview() {
         </div>
 
         {/* Top Devices Today */}
-        <div className="glass-panel rounded-2xl p-0 overflow-hidden flex flex-col h-[400px] lg:h-full lg:max-h-[500px]">
+        <div className="glass-panel rounded-2xl p-0 overflow-hidden flex flex-col h-[400px]">
           <div className="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/30">
             <h4 className="font-semibold text-white">Today's Collections</h4>
           </div>
