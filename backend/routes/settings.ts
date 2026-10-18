@@ -64,13 +64,13 @@ router.post('/restore', upload.single('database'), (req, res) => {
   }
 
   const uploadedDbPath = req.file.path;
+  let restoreDbAttached = false;
 
   try {
+    db.prepare('ATTACH DATABASE ? AS restoreDb').run(uploadedDbPath);
+    restoreDbAttached = true;
+
     const transaction = db.transaction(() => {
-      db.exec(`ATTACH DATABASE '${uploadedDbPath}' AS restoreDb`);
-      
-      db.exec("PRAGMA foreign_keys = OFF;");
-      
       // Clear current data
       db.exec("DELETE FROM income_logs;");
       db.exec("DELETE FROM scrape_logs;");
@@ -84,36 +84,37 @@ router.post('/restore', upload.single('database'), (req, res) => {
       db.exec("INSERT INTO devices SELECT * FROM restoreDb.devices;");
       db.exec("INSERT INTO income_logs SELECT * FROM restoreDb.income_logs;");
       db.exec("INSERT INTO scrape_logs SELECT * FROM restoreDb.scrape_logs;");
-      
-      db.exec("PRAGMA foreign_keys = ON;");
-      db.exec("DETACH DATABASE restoreDb;");
     });
     
     transaction();
+    db.exec("DETACH DATABASE restoreDb;");
+    restoreDbAttached = false;
 
-    // Clean up uploaded file
-    if (fs.existsSync(uploadedDbPath)) {
-      fs.unlinkSync(uploadedDbPath);
-    }
-    
     // Reschedule cron job with restored settings if any
     scheduleCron();
 
     res.json({ success: true, message: 'Database restored successfully' });
   } catch (error) {
     console.error('Restore error:', error);
-    
-    // Try to detach in case of error
-    try {
-      db.exec("DETACH DATABASE restoreDb;");
-    } catch (e) {
-      // ignore
+
+    if (restoreDbAttached) {
+      try {
+        db.exec("DETACH DATABASE restoreDb;");
+      } catch (detachError) {
+        console.error('Restore database detach error:', detachError);
+      }
     }
 
-    if (fs.existsSync(uploadedDbPath)) {
-      fs.unlinkSync(uploadedDbPath);
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: `Failed to restore database: ${message}` });
+  } finally {
+    try {
+      if (fs.existsSync(uploadedDbPath)) {
+        fs.unlinkSync(uploadedDbPath);
+      }
+    } catch (cleanupError) {
+      console.error('Restore upload cleanup error:', cleanupError);
     }
-    res.status(500).json({ error: 'Failed to restore database. Ensure it is a valid backup.' });
   }
 });
 
