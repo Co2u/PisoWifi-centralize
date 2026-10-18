@@ -7,7 +7,6 @@ import db from './db.js';
 import { getAppDateString } from './time.js';
 
 const REQUEST_TIMEOUT = 30000;
-const SCRAPE_CONCURRENCY = 5;
 const LOGIN_ERROR_PATTERNS = [
   'invalid credentials',
   'incorrect',
@@ -16,19 +15,6 @@ const LOGIN_ERROR_PATTERNS = [
   'login failed',
   'access denied',
 ];
-
-const selectDeviceStatement = db.prepare('SELECT * FROM devices WHERE id = ?');
-const selectDeviceIdStatement = db.prepare('SELECT id FROM devices WHERE id = ?');
-const selectDeviceIdsStatement = db.prepare('SELECT id FROM devices');
-const selectIncomeLogStatement = db.prepare('SELECT id, amount FROM income_logs WHERE device_id = ? AND date = ?');
-const updateIncomeLogStatement = db.prepare('UPDATE income_logs SET amount = ?, raw_value = ?, created_at = CURRENT_TIMESTAMP WHERE device_id = ? AND date = ?');
-const insertIncomeLogStatement = db.prepare('INSERT INTO income_logs (device_id, amount, date, raw_value) VALUES (?, ?, ?, ?)');
-const markDeviceOnlineStatement = db.prepare("UPDATE devices SET status = 'online', last_seen = CURRENT_TIMESTAMP, active_users = ? WHERE id = ?");
-const markDeviceOfflineStatement = db.prepare("UPDATE devices SET status = 'offline' WHERE id = ?");
-const insertScrapeLogStatement = db.prepare('INSERT INTO scrape_logs (device_id, status, message) VALUES (?, ?, ?)');
-
-const inFlightDeviceScrapes = new Map<number, Promise<any>>();
-let inFlightAllScrape: Promise<any[]> | null = null;
 
 function normalizeBaseUrl(value: string) {
   let baseUrl = value.trim();
@@ -67,9 +53,9 @@ function looksLikeLoginPage(html: string) {
   );
 }
 
-function parseStats(html: string) {
+function extractIncomeAmount(html: string) {
   const $ = cheerio.load(html);
-  const incomeCandidateTexts = [
+  const candidateTexts = [
     $('*:contains("Today\'s Sales")').last().parent().text(),
     $('*:contains("Today\'s Sales")').last().text(),
     $('.info-box:contains("Today\'s Sales") .info-box-number').first().text(),
@@ -81,21 +67,28 @@ function parseStats(html: string) {
     $('.income-today').first().text(),
   ].filter(Boolean);
 
-  let incomeAmount = 0;
-  for (const candidate of incomeCandidateTexts) {
+  for (const candidate of candidateTexts) {
     const cleaned = candidate.replace(/[^0-9.]/g, '');
     const amount = parseFloat(cleaned);
     if (!Number.isNaN(amount)) {
-      incomeAmount = amount;
-      break;
+      return amount;
     }
   }
 
-  const activeUserCandidateTexts = [
+  return 0;
+}
+
+function extractActiveUsers(html: string) {
+  const $ = cheerio.load(html);
+  
+  // The screenshot shows "Wifi Clients" in a blue box on the Dashboard
+  const candidateTexts = [
     $('*:contains("Wifi Clients")').last().parent().text(),
     $('*:contains("Wifi Clients")').last().text(),
     $('.info-box:contains("Wifi Clients")').find('.info-box-number').text(),
     $('.small-box:contains("Wifi Clients")').find('h3, .inner h3').text(),
+    
+    // Fallbacks just in case
     $('*:contains("Active Users")').last().parent().text(),
     $('*:contains("Active Users")').last().text(),
     $('.info-box:contains("Active Users") .info-box-number').first().text(),
@@ -106,21 +99,19 @@ function parseStats(html: string) {
     $('*:contains("Connected Clients")').last().parent().text(),
   ].filter(Boolean);
 
-  let activeUsers = 0;
-  for (const candidate of activeUserCandidateTexts) {
+  for (const candidate of candidateTexts) {
     const cleaned = candidate.replace(/[^0-9]/g, '');
     const amount = parseInt(cleaned, 10);
     if (!Number.isNaN(amount)) {
-      activeUsers = amount;
-      break;
+      return amount;
     }
   }
 
-  return { incomeAmount, activeUsers };
+  return 0;
 }
 
 function deviceStillExists(deviceId: number) {
-  const row = selectDeviceIdStatement.get(deviceId) as { id: number } | undefined;
+  const row = db.prepare('SELECT id FROM devices WHERE id = ?').get(deviceId) as { id: number } | undefined;
   return Boolean(row);
 }
 
@@ -130,7 +121,8 @@ function writeScrapeLog(deviceId: number, status: 'success' | 'fail', message: s
     return;
   }
 
-  insertScrapeLogStatement.run(deviceId, status, message);
+  db.prepare('INSERT INTO scrape_logs (device_id, status, message) VALUES (?, ?, ?)')
+    .run(deviceId, status, message);
 }
 
 const cryptoJsonFormatter = {
@@ -168,13 +160,13 @@ const cryptoJsonFormatter = {
 };
 
 async function fetchStatsPage(client: ReturnType<typeof wrapper>, baseUrl: string) {
-  const statsUrls = [...new Set([
+  const statsUrls = [
     getPrimaryStatsUrl(baseUrl),
     `${baseUrl}/system`,
     `${baseUrl}/dashboard`,
     `${baseUrl}/admin/dashboard`,
     `${baseUrl}/admin/`,
-  ])];
+  ];
 
   for (const statsUrl of statsUrls) {
     try {
@@ -199,7 +191,7 @@ async function fetchStatsPage(client: ReturnType<typeof wrapper>, baseUrl: strin
 }
 
 async function attemptFormLogin(client: ReturnType<typeof wrapper>, baseUrl: string, device: any) {
-  const loginPageUrls = [...new Set([
+  const loginPageUrls = [
     `${baseUrl}/`,
     `${baseUrl}/auth/signin/`,
     `${baseUrl}/auth/signin/?url=${encodeURIComponent(getPrimaryStatsUrl(baseUrl))}`,
@@ -208,7 +200,7 @@ async function attemptFormLogin(client: ReturnType<typeof wrapper>, baseUrl: str
     `${baseUrl}/admin/`,
     `${baseUrl}/admin/login`,
     `${baseUrl}/admin/login/`,
-  ])];
+  ];
 
   for (const loginPageUrl of loginPageUrls) {
     try {
@@ -225,10 +217,7 @@ async function attemptFormLogin(client: ReturnType<typeof wrapper>, baseUrl: str
       const html = typeof pageRes.data === 'string' ? pageRes.data : JSON.stringify(pageRes.data);
       if (looksLikeStatsPage(html)) {
         console.log(`[Scraper] ${loginPageUrl} already exposes the stats page`);
-        return {
-          success: true as const,
-          statsPage: { url: loginPageUrl, html },
-        };
+        return { success: true as const };
       }
 
       const $ = cheerio.load(html);
@@ -332,20 +321,10 @@ async function attemptFormLogin(client: ReturnType<typeof wrapper>, baseUrl: str
         continue;
       }
 
-      const loginHtml =
-        typeof loginRes.data === 'string' ? loginRes.data : JSON.stringify(loginRes.data);
-      if (looksLikeStatsPage(loginHtml)) {
-        console.log(`[Scraper] Login succeeded and returned stats via ${submitUrl}`);
-        return {
-          success: true as const,
-          statsPage: { url: submitUrl, html: loginHtml },
-        };
-      }
-
       const statsPage = await fetchStatsPage(client, baseUrl);
       if (statsPage) {
         console.log(`[Scraper] Login succeeded via ${submitUrl}`);
-        return { success: true as const, statsPage };
+        return { success: true as const };
       }
 
       const followUp = await client.get(getPrimaryStatsUrl(baseUrl), {
@@ -372,8 +351,8 @@ async function attemptFormLogin(client: ReturnType<typeof wrapper>, baseUrl: str
   };
 }
 
-async function scrapeDeviceInternal(deviceId: number) {
-  const device = selectDeviceStatement.get(deviceId) as any;
+export async function scrapeDevice(deviceId: number) {
+  const device = db.prepare('SELECT * FROM devices WHERE id = ?').get(deviceId) as any;
   if (!device) return { success: false, error: 'Device not found' };
 
   try {
@@ -390,27 +369,30 @@ async function scrapeDeviceInternal(deviceId: number) {
         throw new Error(loginAttempt.error);
       }
 
-      statsPage = loginAttempt.statsPage ?? await fetchStatsPage(client, baseUrl);
+      statsPage = await fetchStatsPage(client, baseUrl);
       if (!statsPage) {
         throw new Error(`Logged in but could not load the admin stats page at ${getPrimaryStatsUrl(baseUrl)}`);
       }
     }
 
-    const { incomeAmount, activeUsers } = parseStats(statsPage.html);
+    const incomeAmount = extractIncomeAmount(statsPage.html);
+    const activeUsers = extractActiveUsers(statsPage.html);
     const today = getAppDateString();
     const metadata = JSON.stringify({ source: 'scrape', statsUrl: statsPage.url });
 
-    const existingLog = selectIncomeLogStatement.get(device.id, today) as { id: number, amount: number } | undefined;
+    const existingLog = db.prepare('SELECT id, amount FROM income_logs WHERE device_id = ? AND date = ?').get(device.id, today) as { id: number, amount: number } | undefined;
     if (existingLog) {
       const storedAmount = Number(existingLog.amount) || 0;
       const nextAmount = Math.max(storedAmount, incomeAmount);
-      updateIncomeLogStatement.run(nextAmount, metadata, device.id, today);
+      db.prepare('UPDATE income_logs SET amount = ?, raw_value = ?, created_at = CURRENT_TIMESTAMP WHERE device_id = ? AND date = ?')
+        .run(nextAmount, metadata, device.id, today);
     } else {
-      insertIncomeLogStatement.run(device.id, incomeAmount, today, metadata);
+      db.prepare('INSERT INTO income_logs (device_id, amount, date, raw_value) VALUES (?, ?, ?, ?)')
+        .run(device.id, incomeAmount, today, metadata);
     }
 
     if (deviceStillExists(device.id)) {
-      markDeviceOnlineStatement.run(activeUsers, device.id);
+      db.prepare("UPDATE devices SET status = 'online', last_seen = CURRENT_TIMESTAMP, active_users = ? WHERE id = ?").run(activeUsers, device.id);
     }
 
     console.log(`[Scraper] Device ${deviceId} scrape success: PHP ${incomeAmount}, Active Users: ${activeUsers}`);
@@ -425,7 +407,7 @@ async function scrapeDeviceInternal(deviceId: number) {
 
     console.log(`[Scraper] Device ${deviceId} scrape failed: ${errorMsg}`);
     if (deviceStillExists(device.id)) {
-      markDeviceOfflineStatement.run(device.id);
+      db.prepare("UPDATE devices SET status = 'offline' WHERE id = ?").run(device.id);
     }
     writeScrapeLog(device.id, 'fail', errorMsg);
 
@@ -433,63 +415,11 @@ async function scrapeDeviceInternal(deviceId: number) {
   }
 }
 
-export async function scrapeDevice(deviceId: number) {
-  const existingPromise = inFlightDeviceScrapes.get(deviceId);
-  if (existingPromise) {
-    return existingPromise;
-  }
-
-  const scrapePromise = scrapeDeviceInternal(deviceId)
-    .finally(() => {
-      inFlightDeviceScrapes.delete(deviceId);
-    });
-
-  inFlightDeviceScrapes.set(deviceId, scrapePromise);
-  return scrapePromise;
-}
-
-async function runWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  worker: (item: T, index: number) => Promise<R>,
-) {
-  if (items.length === 0) {
-    return [] as R[];
-  }
-
-  const results = new Array<R>(items.length);
-  let nextIndex = 0;
-  const workerCount = Math.min(limit, items.length);
-
-  await Promise.all(
-    Array.from({ length: workerCount }, async () => {
-      while (true) {
-        const currentIndex = nextIndex;
-        nextIndex += 1;
-
-        if (currentIndex >= items.length) {
-          return;
-        }
-
-        results[currentIndex] = await worker(items[currentIndex], currentIndex);
-      }
-    }),
-  );
-
-  return results;
-}
-
 export async function scrapeAllDevices() {
-  if (inFlightAllScrape) {
-    return inFlightAllScrape;
+  const devices = db.prepare('SELECT id FROM devices').all() as { id: number }[];
+  const results = [];
+  for (const device of devices) {
+    results.push(await scrapeDevice(device.id));
   }
-
-  inFlightAllScrape = (async () => {
-    const devices = selectDeviceIdsStatement.all() as { id: number }[];
-    return runWithConcurrency(devices, SCRAPE_CONCURRENCY, (device) => scrapeDevice(device.id));
-  })().finally(() => {
-    inFlightAllScrape = null;
-  });
-
-  return inFlightAllScrape;
+  return results;
 }

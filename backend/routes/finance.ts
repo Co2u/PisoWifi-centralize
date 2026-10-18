@@ -42,10 +42,10 @@ router.get('/analytics/overview', (req, res) => {
 router.get('/income/today', (req, res) => {
   const today = getAppDateString();
   const logs = db.prepare(`
-    SELECT d.id as device_id, d.name, d.location, i.amount 
+    SELECT d.id as device_id, d.name, d.location, d.status, d.zerotier_ip, i.amount 
     FROM devices d
     LEFT JOIN income_logs i ON d.id = i.device_id AND i.date = ?
-    ORDER BY i.amount DESC
+    ORDER BY COALESCE(i.amount, 0) DESC, d.name ASC
   `).all(today);
   
   res.json(logs);

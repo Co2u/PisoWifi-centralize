@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../lib/api';
-import { RefreshCw, DollarSign, Server, ServerOff } from 'lucide-react';
+import { RefreshCw, DollarSign, Server, ServerOff, Search, X, ChevronRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Overview() {
   const [stats, setStats] = useState({ incomeToday: 0, incomeAllTime: 0, onlineDevices: 0, offlineDevices: 0 });
   const [chartData, setChartData] = useState([]);
-  const [todayIncomeLogs, setTodayIncomeLogs] = useState([]);
+  const [todayIncomeLogs, setTodayIncomeLogs] = useState<any[]>([]);
+  const [collectionSearch, setCollectionSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [scraping, setScraping] = useState(false);
   const [chartDays, setChartDays] = useState<number | 'custom'>(7);
@@ -46,6 +48,17 @@ export default function Overview() {
       fetchData();
     }
   }, [chartDays, startDate, endDate]);
+
+  const filteredCollections = useMemo(() => {
+    if (!collectionSearch.trim()) return todayIncomeLogs;
+    const query = collectionSearch.toLowerCase().trim();
+    return todayIncomeLogs.filter((log: any) => {
+      const name = (log.name || '').toLowerCase();
+      const location = (log.location || '').toLowerCase();
+      const ip = (log.zerotier_ip || '').toLowerCase();
+      return name.includes(query) || location.includes(query) || ip.includes(query);
+    });
+  }, [todayIncomeLogs, collectionSearch]);
 
   const handleScrapeAll = async () => {
     setScraping(true);
@@ -213,24 +226,111 @@ export default function Overview() {
         </div>
 
         {/* Top Devices Today */}
-        <div className="glass-panel rounded-2xl p-0 overflow-hidden flex flex-col h-[400px] lg:h-full lg:max-h-[500px]">
-          <div className="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/30">
-            <h4 className="font-semibold text-white">Today's Collections</h4>
+        <div className="glass-panel rounded-2xl p-0 overflow-hidden flex flex-col h-[480px] lg:h-full lg:max-h-[520px]">
+          <div className="p-4 border-b border-slate-700/50 bg-slate-900/40 space-y-3">
+            <div className="flex justify-between items-center">
+              <div>
+                <h4 className="font-semibold text-white">Today's Collections</h4>
+                <p className="text-xs text-slate-400">Click a node to view its device information</p>
+              </div>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-mono font-medium">
+                {collectionSearch ? `${filteredCollections.length} of ${todayIncomeLogs.length}` : `${todayIncomeLogs.length} nodes`}
+              </span>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={collectionSearch}
+                onChange={(e) => setCollectionSearch(e.target.value)}
+                placeholder="Search nodes by name, location, or IP..."
+                className="w-full pl-9 pr-8 py-2 bg-slate-800/80 hover:bg-slate-800 focus:bg-slate-900/90 border border-slate-700 focus:border-blue-500 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+              />
+              {collectionSearch && (
+                <button
+                  type="button"
+                  onClick={() => setCollectionSearch('')}
+                  title="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors p-0.5 rounded hover:bg-slate-700/50"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scroll p-4">
+
+          <div className="flex-1 overflow-y-auto custom-scroll p-3">
             {todayIncomeLogs.length === 0 ? (
-              <p className="text-slate-500 text-sm text-center py-10">No data collected today yet.</p>
+              <div className="text-center py-12 px-4">
+                <Server className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                <p className="text-slate-400 text-sm font-medium">No data collected today yet</p>
+                <p className="text-slate-500 text-xs mt-1">Collections will update when your nodes sync or when you run a manual scrape.</p>
+              </div>
+            ) : filteredCollections.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <Search className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                <p className="text-slate-300 text-sm font-medium">No matching devices</p>
+                <p className="text-slate-500 text-xs mt-1">No nodes found matching "{collectionSearch}"</p>
+                <button
+                  type="button"
+                  onClick={() => setCollectionSearch('')}
+                  className="mt-3 text-xs text-blue-400 hover:text-blue-300 font-medium underline"
+                >
+                  Clear search
+                </button>
+              </div>
             ) : (
-              <ul className="divide-y divide-slate-700/50">
-                {todayIncomeLogs.map((log: any) => (
-                  <li key={log.device_id} className="py-3 flex justify-between items-center hover:bg-slate-800/30 transition-colors px-2 -mx-2 rounded">
-                    <div>
-                      <p className="text-sm font-medium text-slate-200">{log.name}</p>
-                      <p className="text-xs text-slate-500 font-mono mt-0.5">{log.location}</p>
-                    </div>
-                    <span className="inline-flex items-center text-sm font-semibold text-blue-400 font-mono">
-                      ₱{log.amount?.toFixed(2) || '0.00'}
-                    </span>
+              <ul className="space-y-1.5">
+                {filteredCollections.map((log: any) => (
+                  <li key={log.device_id}>
+                    <Link
+                      to={`/devices/${log.device_id}`}
+                      title={`View device info for ${log.name}`}
+                      className="group flex items-center justify-between p-2.5 rounded-xl border border-slate-800/60 hover:border-blue-500/40 bg-slate-900/20 hover:bg-slate-800/60 active:bg-slate-800/90 transition-all duration-150 cursor-pointer"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              log.status === 'online'
+                                ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]'
+                                : 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]'
+                            }`}
+                            title={log.status === 'online' ? 'Online' : 'Offline'}
+                          />
+                          <p className="text-sm font-semibold text-slate-200 group-hover:text-blue-400 transition-colors truncate">
+                            {log.name}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1 pl-4">
+                          <span className="truncate max-w-[130px] sm:max-w-[160px]" title={log.location || 'No location'}>
+                            {log.location || 'No location'}
+                          </span>
+                          {log.zerotier_ip && (
+                            <>
+                              <span className="text-slate-600">·</span>
+                              <span className="font-mono text-slate-400 text-[11px] truncate">
+                                {log.zerotier_ip}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <span className="inline-flex items-center text-sm font-bold text-blue-400 font-mono">
+                            ₱{log.amount != null ? Number(log.amount).toFixed(2) : '0.00'}
+                          </span>
+                          <span className="block text-[10px] text-slate-500 uppercase tracking-wider text-right font-medium">
+                            today
+                          </span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                      </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
